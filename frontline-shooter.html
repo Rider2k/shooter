@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#11151b">
+<title>FRONTLINE — Тактический шутер</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10151b;color:#eef2f5;font-family:Arial, sans-serif;touch-action:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;background:#242b2e}
+#hud{position:fixed;inset:0;pointer-events:none}
+.top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.panel{background:#101820d9;border:1px solid #65717a66;border-radius:10px;padding:8px 11px;box-shadow:0 4px 18px #0005}
+.stat{font-size:11px;color:#aeb9c0;letter-spacing:1px}.value{font-size:18px;font-weight:800;margin-top:3px}
+#healthbar{height:6px;width:110px;background:#3c454b;border-radius:5px;margin-top:6px;overflow:hidden}#healthfill{height:100%;width:100%;background:#9ab76a}
+#centerMsg{position:absolute;left:50%;top:20%;transform:translateX(-50%);font-weight:900;letter-spacing:2px;text-shadow:0 2px 8px #000;text-align:center}
+#cross{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);opacity:.9}
+#cross:before,#cross:after{content:"";position:absolute;background:#e9eee8;box-shadow:0 0 3px #000}
+#cross:before{width:2px;height:22px;left:10px}#cross:after{height:2px;width:22px;top:10px}
+#bottom{position:absolute;bottom:14px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-end}
+#stick{width:118px;height:118px;border:2px solid #d9e0e455;border-radius:50%;background:#10182077;position:relative;pointer-events:auto;touch-action:none}
+#knob{position:absolute;width:46px;height:46px;left:34px;top:34px;border-radius:50%;background:#dce5e477;border:2px solid #fff8}
+.actions{display:flex;gap:9px;align-items:flex-end;pointer-events:auto}
+.action{border:1px solid #dce5e477;background:#17212bdc;color:#fff;border-radius:50%;width:66px;height:66px;font-weight:800;font-size:11px;touch-action:none}
+.action.fire{width:82px;height:82px;background:#8f3027e8;border-color:#e69a83;font-size:13px}
+.action:active{filter:brightness(1.4);transform:scale(.96)}
+#ammo{position:absolute;bottom:116px;right:18px;text-align:right;text-shadow:0 2px 5px #000;font-weight:800;font-size:20px}
+#ammo small{display:block;font-size:10px;color:#c3cbd0;letter-spacing:1px}
+#overlay{position:fixed;inset:0;background:linear-gradient(#0b1118dd,#111820ee);display:flex;align-items:center;justify-content:center;padding:22px;z-index:5}
+.card{width:min(430px,100%);background:#18212a;border:1px solid #73808a55;border-radius:18px;padding:24px;box-shadow:0 20px 70px #0009}
+h1{margin:0 0 6px;font-size:30px;letter-spacing:2px} .sub{color:#aeb9c0;font-size:13px;line-height:1.5}
+button.primary{width:100%;margin-top:18px;padding:15px;border:0;border-radius:10px;background:#a94b37;color:white;font-size:15px;font-weight:900;letter-spacing:1px}
+.hint{margin-top:12px;color:#9ba8b0;font-size:11px;line-height:1.5}
+#reloadNote{position:absolute;left:50%;bottom:125px;transform:translateX(-50%);font-size:12px;color:#fff;text-shadow:0 2px 5px #000;display:none}
+@media(min-width:800px){#bottom{left:28px;right:28px}#stick{width:130px;height:130px}#knob{left:40px;top:40px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+ <div class="top">
+  <div class="panel"><div class="stat">ЗДОРОВЬЕ</div><div class="value" id="hp">100</div><div id="healthbar"><div id="healthfill"></div></div></div>
+  <div class="panel"><div class="stat">ЗАДАНИЕ</div><div class="value" id="mission">Зачистка 0/6</div></div>
+  <div class="panel"><div class="stat">ОЧКИ</div><div class="value" id="score">0</div></div>
+ </div>
+ <div id="centerMsg"></div><div id="cross"></div>
+ <div id="ammo"><small>АВТОМАТ</small><span id="clip">30</span> / <span id="reserve">90</span></div>
+ <div id="reloadNote">ПЕРЕЗАРЯДКА…</div>
+ <div id="bottom">
+  <div id="stick"><div id="knob"></div></div>
+  <div class="actions">
+   <button class="action" id="reload">R<br>ЗАРЯД</button>
+   <button class="action" id="aim">ПРИЦЕЛ</button>
+   <button class="action fire" id="fire">ОГОНЬ</button>
+  </div>
+ </div>
+</div>
+<div id="overlay"><div class="card">
+ <h1>FRONTLINE</h1><div style="color:#c26d55;font-weight:800;letter-spacing:3px;font-size:11px;margin-bottom:15px">TACTICAL COMBAT</div>
+ <div class="sub">Одиночная миссия. Зачисти территорию от шести противников под управлением ботов.</div>
+ <div class="hint">Управление: левый джойстик — движение; проведи пальцем по правой части экрана — поворот камеры; кнопка «ОГОНЬ» — стрельба. На компьютере: WASD + мышь, пробел — огонь, R — перезарядка.</div>
+ <button class="primary" id="start">НАЧАТЬ МИССИЮ</button>
+ <div class="hint">Игровая демо-версия. Не является симулятором реального оружия.</div>
+ </div></div>
+<script>
+(()=>{
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight,dpr=Math.min(devicePixelRatio||1,2);
+function resize(){W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+const map=[
+"1111111111111111",
+"1000000000000001",
+"1011100100111001",
+"1000100000100001",
+"1000101100101101",
+"1000001000000001",
+"1011001001100101",
+"1000000000000101",
+"1001100110010001",
+"1000000000000001",
+"1111111111111111"
+].map(r=>r.split('').map(Number));
+const player={x:2.3,y:2.2,a:0.15,hp:100};
+let enemies=[],score=0,kills=0,ammo=30,reserve=90,reloading=false,lastShot=0,gameOn=false,won=false,dead=false,flash=0,damageFlash=0;
+const FOV=Math.PI/2.8,depth=14;
+const keys={};let joy={x:0,y:0},drag=null,aiming=false;
+function wall(x,y){return !map[Math.floor(y)]||map[Math.floor(y)][Math.floor(x)]!==0}
+function norm(a){while(a>Math.PI)a-=Math.PI*2;while(a< -Math.PI)a+=Math.PI*2;return a}
+function cast(a){let d=0;while(d<depth){d+=.035;let x=player.x+Math.cos(a)*d,y=player.y+Math.sin(a)*d;if(wall(x,y))return {d,x,y}}return {d:depth,x:0,y:0}}
+function spawn(){enemies=[];[[11.5,2.2],[7.5,3.5],[13.2,5.5],[3.5,8.5],[8.5,8.5],[12.5,8.5]].forEach((p,i)=>enemies.push({x:p[0],y:p[1],hp:100,alive:true,phase:i*.8,attack:0}))}
+function draw(){
+ const horizon=H*.49;
+ let sky=ctx.createLinearGradient(0,0,0,horizon);sky.addColorStop(0,'#4b5558');sky.addColorStop(1,'#222a2d');ctx.fillStyle=sky;ctx.fillRect(0,0,W,horizon);
+ let floor=ctx.createLinearGradient(0,horizon,0,H);floor.addColorStop(0,'#4a4a40');floor.addColorStop(1,'#171b19');ctx.fillStyle=floor;ctx.fillRect(0,horizon,W,H-horizon);
+ // distant horizon silhouettes
+ ctx.fillStyle='#252d2b';for(let i=0;i<9;i++){let x=(i*173-(player.x*31)%173);ctx.fillRect(x,horizon-25-(i%3)*9,65,25+(i%3)*9)}
+ const strip=Math.max(2,Math.floor(W/300));let zbuf=[];
+ for(let sx=0;sx<W;sx+=strip){let ray=player.a+Math.atan((sx-W/2)/(W/2)*Math.tan(FOV/2));let hit=cast(ray),correct=hit.d*Math.cos(ray-player.a);zbuf[Math.floor(sx/strip)]=correct;
+ let wh=Math.min(H*1.5,H*.82/(correct+.08));let y=horizon-wh/2;
+ let shade=Math.max(35,150-correct*9);let side=(Math.floor(hit.x*2)+Math.floor(hit.y*2))%2;
+ ctx.fillStyle=`rgb(${shade*.78|0},${shade*.84|0},${shade*.78|0})`;ctx.fillRect(sx,y,strip+1,wh);
+ ctx.fillStyle=`rgba(0,0,0,${side?.22:.08})`;ctx.fillRect(sx,y,strip+1,wh);
+ // wall seams
+ if(Math.floor(hit.x*2)%2===0){ctx.fillStyle='#1119';ctx.fillRect(sx,y,1,wh)}
+ }
+ // enemies sorted far to near
+ let visible=enemies.filter(e=>e.alive).map(e=>{let dx=e.x-player.x,dy=e.y-player.y;return {...e,dist:Math.hypot(dx,dy),ang:norm(Math.atan2(dy,dx)-player.a)}}).filter(e=>Math.abs(e.ang)<FOV*.75&&e.dist<depth).sort((a,b)=>b.dist-a.dist);
+ for(const e of visible){
+ let screenX=W/2+Math.tan(e.ang)/Math.tan(FOV/2)*W/2;
+ let size=Math.min(H*.9,H*.8/(e.dist+.2));let x=screenX-size*.23,y=horizon-size*.52;
+ let idx=Math.max(0,Math.min(zbuf.length-1,Math.floor(screenX/strip)));
+ if(e.dist> (zbuf[idx]||depth)+.15)continue;
+ // soldier silhouette
+ ctx.fillStyle='#17211d';ctx.fillRect(x+size*.12,y+size*.28,size*.48,size*.55);
+ ctx.fillStyle='#526052';ctx.fillRect(x+size*.18,y+size*.31,size*.36,size*.38);
+ ctx.fillStyle='#8a8b75';ctx.beginPath();ctx.arc(screenX,y+size*.18,size*.14,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#343a32';ctx.fillRect(x+size*.2,y+size*.08,size*.32,size*.09);
+ ctx.fillStyle='#161b18';ctx.fillRect(x+size*.02,y+size*.49,size*.18,size*.09);ctx.fillRect(x+size*.48,y+size*.49,size*.18,size*.09);
+ ctx.fillStyle='#252b29';ctx.fillRect(x+size*.47,y+size*.45,size*.38,size*.045);
+ // health line
+ ctx.fillStyle='#111';ctx.fillRect(screenX-size*.2,y-size*.03,size*.4,4);ctx.fillStyle='#b44d3c';ctx.fillRect(screenX-size*.2,y-size*.03,size*.4*(e.hp/100),4);
+ }
+ // rifle foreground
+ let recoil=flash?9:0,gunY=H*.85+recoil;
+ ctx.fillStyle='#111719';ctx.beginPath();ctx.moveTo(W*.42,H);ctx.lineTo(W*.46,gunY);ctx.lineTo(W*.59,gunY);ctx.lineTo(W*.64,H);ctx.fill();
+ ctx.fillStyle='#39413e';ctx.fillRect(W*.49,gunY-30,W*.09,75);ctx.fillStyle='#171d1b';ctx.fillRect(W*.525,gunY-68,W*.025,70);
+ ctx.fillStyle='#59615a';ctx.fillRect(W*.51,gunY-19,W*.06,12);
+ if(flash){ctx.fillStyle='#f4c66b';ctx.beginPath();ctx.arc(W*.535,gunY-75,10+Math.random()*8,0,Math.PI*2);ctx.fill()}
+ if(damageFlash){ctx.fillStyle=`rgba(170,30,20,${damageFlash*.28})`;ctx.fillRect(0,0,W,H)}
+}
+function update(dt){
+ if(!gameOn||dead||won)return;
+ let forward=(keys.KeyW?1:0)-(keys.KeyS?1:0)-joy.y;
+ let strafe=(keys.KeyD?1:0)-(keys.KeyA?1:0)+joy.x;
+ let speed=2.7*dt,dx=(Math.cos(player.a)*forward-Math.sin(player.a)*strafe)*speed,dy=(Math.sin(player.a)*forward+Math.cos(player.a)*strafe)*speed;
+ if(!wall(player.x+dx,player.y))player.x+=dx;if(!wall(player.x,player.y+dy))player.y+=dy;
+ for(const e of enemies){if(!e.alive)continue;let d=Math.hypot(player.x-e.x,player.y-e.y);e.phase+=dt;
+ if(d>1.25&&d<8){let vx=(player.x-e.x)/d,vy=(player.y-e.y)/d;let nx=e.x+vx*dt*.38,ny=e.y+vy*dt*.38;if(!wall(nx,e.y))e.x=nx;if(!wall(e.x,ny))e.y=ny}
+ if(d<5){e.attack-=dt;if(e.attack<=0){player.hp=Math.max(0,player.hp-5);e.attack=1.25;damageFlash=.8}}
+ }
+ if(player.hp<=0){dead=true;showEnd('МИССИЯ ПРОВАЛЕНА','Попробуй ещё раз.')}
+ if(kills>=6){won=true;showEnd('ТЕРРИТОРИЯ ЗАЧИЩЕНА','Все противники нейтрализованы.')}
+ flash=Math.max(0,flash-dt*5);damageFlash=Math.max(0,damageFlash-dt*1.6);
+ document.getElementById('hp').textContent=player.hp;document.getElementById('healthfill').style.width=player.hp+'%';document.getElementById('score').textContent=score;document.getElementById('mission').textContent=`Зачистка ${kills}/6`;document.getElementById('clip').textContent=ammo;document.getElementById('reserve').textContent=reserve;
+}
+function shoot(){if(!gameOn||dead||won||reloading)return;if(ammo<=0){reload();return}let now=performance.now();if(now-lastShot<190)return;lastShot=now;ammo--;flash=.13;
+ let target=null,best=.13;
+ for(const e of enemies){if(!e.alive)continue;let dx=e.x-player.x,dy=e.y-player.y,d=Math.hypot(dx,dy),a=Math.abs(norm(Math.atan2(dy,dx)-player.a));if(a<best&&d<cast(Math.atan2(dy,dx)).d+.2){best=a;target=e}}
+ if(target){target.hp-=50;if(target.hp<=0){target.alive=false;kills++;score+=100}else score+=20}
+}
+function reload(){if(reloading||ammo===30||reserve<=0||!gameOn)return;reloading=true;document.getElementById('reloadNote').style.display='block';setTimeout(()=>{let n=Math.min(30-ammo,reserve);ammo+=n;reserve-=n;reloading=false;document.getElementById('reloadNote').style.display='none'},1250)}
+function showEnd(title,desc){document.getElementById('overlay').style.display='flex';document.querySelector('.card').innerHTML=`<h1>${title}</h1><div class="sub">${desc}<br><br>Счёт: ${score}</div><button class="primary" id="again">ИГРАТЬ СНОВА</button>`;document.getElementById('again').onclick=start}
+function start(){player.x=2.3;player.y=2.2;player.a=.15;player.hp=100;ammo=30;reserve=90;score=0;kills=0;dead=false;won=false;reloading=false;spawn();gameOn=true;document.getElementById('overlay').style.display='none';document.getElementById('reloadNote').style.display='none'}
+document.getElementById('start').onclick=start;
+document.getElementById('fire').addEventListener('pointerdown',e=>{e.preventDefault();shoot()});
+document.getElementById('reload').onclick=reload;
+document.getElementById('aim').onclick=()=>{aiming=!aiming;document.getElementById('aim').style.background=aiming?'#53634c':'#17212bdc';};
+document.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='Space'){e.preventDefault();shoot()}if(e.code==='KeyR')reload()});
+document.addEventListener('keyup',e=>keys[e.code]=false);
+const stick=document.getElementById('stick'),knob=document.getElementById('knob');let stickId=null;
+stick.addEventListener('pointerdown',e=>{stickId=e.pointerId;stick.setPointerCapture(stickId);moveStick(e)});
+stick.addEventListener('pointermove',e=>{if(e.pointerId===stickId)moveStick(e)});
+function moveStick(e){let r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,len=Math.hypot(dx,dy),m=Math.min(1,len/43);if(len){joy.x=dx/len*m;joy.y=dy/len*m}knob.style.left=(34+joy.x*34)+'px';knob.style.top=(34+joy.y*34)+'px'}
+function endStick(e){if(e.pointerId===stickId){stickId=null;joy={x:0,y:0};knob.style.left='34px';knob.style.top='34px'}}
+stick.addEventListener('pointerup',endStick);stick.addEventListener('pointercancel',endStick);
+let lookId=null,lastX=0;
+canvas.addEventListener('pointerdown',e=>{if(e.clientX>W*.42&&e.clientY>H*.18){lookId=e.pointerId;lastX=e.clientX;canvas.setPointerCapture(lookId)}});
+canvas.addEventListener('pointermove',e=>{if(e.pointerId===lookId){player.a+= (e.clientX-lastX)*.006*(aiming?.55:1);lastX=e.clientX}});
+canvas.addEventListener('pointerup',e=>{if(e.pointerId===lookId)lookId=null});
+let prev=performance.now();function loop(now){let dt=Math.min((now-prev)/1000,.05);prev=now;update(dt);draw();requestAnimationFrame(loop)}spawn();requestAnimationFrame(loop);
+})();
+</script>
+</body></html>
